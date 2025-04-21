@@ -1,14 +1,20 @@
 {
   "canisters": {
-    "ic-identity-certifier-backend": {
-      "main": "src/ic-identity-certifier-backend/main.mo",
-      "type": "motoko"
+    "ic-identity-certifier": {
+      "main": "src/main.mo",
+      "type": "motoko",
+      "declarations": {
+        "bindings": null,
+        "env_override": null,
+        "node_compatibility": false,
+        "output": "./declarations"
+      }
     }
   },
   "defaults": {
     "build": {
       "args": "",
-      "packtool": ""
+      "packtool": "mops sources"
     }
   },
   "output_env_file": ".env",

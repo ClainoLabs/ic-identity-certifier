@@ -1,59 +1,116 @@
 # `ic-identity-certifier`
 
-Welcome to your new `ic-identity-certifier` project and to the Internet Computer development community. By default, creating a new project adds this README and some template files to your project directory. You can edit these template files to customize your project and to include your own code to speed up the development cycle.
+This canister enables **off-chain authentication of ICP principals** in hybrid dApps, particularly when using wallets (like Plug or Internet Identity) that do **not support message signing** or public key retrieval.
 
-To get started, you might want to explore the project directory structure and the default configuration file. Working with this project in your development environment will not affect any production deployment or identity tokens.
+It serves as a minimal bridge between your Internet Computer frontend and traditional backend infrastructure, allowing your backend to confirm that a user has control over a given `Principal` through a secure session-based authentication flow.
 
-To learn more before you start working with `ic-identity-certifier`, see the following documentation available online:
+---
 
-- [Quick Start](https://internetcomputer.org/docs/current/developer-docs/setup/deploy-locally)
-- [SDK Developer Tools](https://internetcomputer.org/docs/current/developer-docs/setup/install)
-- [Motoko Programming Language Guide](https://internetcomputer.org/docs/current/motoko/main/motoko)
-- [Motoko Language Quick Reference](https://internetcomputer.org/docs/current/motoko/main/language-manual)
+## ✨ Use Case
 
-If you want to start working on your project right away, you might want to try the following commands:
+This is ideal for hybrid applications, such as:
 
-```bash
-cd ic-identity-certifier/
-dfx help
-dfx canister --help
-```
+- Sports betting exchanges  
+- Game backends  
+- Analytics dashboards  
+- Any ICP dApp using off-chain APIs and requiring secure user identification
 
-## Running the project locally
+---
 
-If you want to test your project locally, you can use the following commands:
+## 🔐 How It Works
 
-```bash
-# Starts the replica, running in the background
-dfx start --background
+1. **Frontend**: A user visits your app and connects with their wallet.  
+2. **Backend**: Your server generates a unique session ID and sends it to the frontend.  
+3. **Authorization**: Your backend calls `initiateAuth(sessionId)` on the canister, authorizing this session for a short time (default is 5 minutes).  
+4. **User Action**: The frontend tells the user to call `confirmIdentity(sessionId)` from their wallet-connected session.  
+5. **Verification**: Your backend calls `verifyIdentity(sessionId)` to check if the user successfully confirmed their identity in time.  
+6. **Outcome**: If successful, your backend receives the user's principal and can issue a session (e.g., a JWT) or grant access.
 
-# Deploys your canisters to the replica and generates your candid interface
-dfx deploy
-```
+---
 
-Once the job completes, your application will be available at `http://localhost:4943?canisterId={asset_canister_id}`.
+## 🔧 Deployment
 
-If you have made changes to your backend canister, you can generate a new candid interface with
+Make sure to deploy this canister with your server's principal as the **admin**, so only your backend can authorize authentication requests.
 
 ```bash
-npm run generate
+dfx deploy --argument '(admin "your-server-principal-id-here")'
 ```
 
-at any time. This is recommended before starting the frontend development server, and will be run automatically any time you run `dfx deploy`.
+This protects your canister from being abused as a free authentication service by other dApps.
 
-If you are making frontend changes, you can start a development server with
+---
 
-```bash
-npm start
+## 🧪 Interface
+
+### `initiateAuth(sessionId: Text, expirationNanoseconds: ?Nat) : async Response`
+
+Called by the **admin** to authorize a session. The second parameter is optional; if omitted, defaults to 5 minutes.
+
+---
+
+### `confirmIdentity(sessionId: Text) : async Response`
+
+Called by the **user** (from the frontend). Confirms their identity on-chain using the provided session ID.
+
+---
+
+### `verifyIdentity(sessionId: Text) : async (Response, ?Principal)`
+
+Called by the **admin**. Returns whether the user successfully confirmed their identity and their principal if successful.
+
+---
+
+### `documentation() : query Text`
+
+Returns a human-readable explanation of the canister's purpose and usage.
+
+---
+
+## 📦 Response Types
+
+```motoko
+type Response = {
+  #Ok;            // Success
+  #Unauthorized;  // Caller is not allowed to perform this action
+  #Expired;       // User failed to confirm identity within time window
+  #NotConfirmed;  // User has not confirmed yet
+  #InvalidSession; // The provided session ID is invalid or not found
+};
 ```
 
-Which will start a server at `http://localhost:8080`, proxying API requests to the replica at port 4943.
+---
 
-### Note on frontend environment variables
+## 🛡️ Security Notes
 
-If you are hosting frontend code somewhere without using DFX, you may need to make one of the following adjustments to ensure your project does not fetch the root key in production:
+- Only the `admin` can initiate authentication requests.  
+- The canister tracks expiration times to prevent replay attacks.  
+- User confirmations are cleared after verification to avoid repeated confirmations.
+- Session IDs should be randomly generated and sufficiently long to prevent guessing.
+- Each session can only be used once for authentication.
 
-- set`DFX_NETWORK` to `ic` if you are using Webpack
-- use your own preferred method to replace `process.env.DFX_NETWORK` in the autogenerated declarations
-  - Setting `canisters -> {asset_canister_id} -> declarations -> env_override to a string` in `dfx.json` will replace `process.env.DFX_NETWORK` with the string in the autogenerated declarations
-- Write your own `createActor` constructor
+---
+
+## 🧩 Example Flow Diagram
+
+```
+Frontend ↔ Backend ↔ IC Canister
+
+[1] User connects wallet  
+[2] Backend generates session ID → Frontend  
+[3] Backend calls initiateAuth(sessionId)  
+[4] User calls confirmIdentity(sessionId) on IC  
+[5] Backend calls verifyIdentity(sessionId)  
+[6] Backend receives user's principal and issues JWT  
+```
+
+---
+
+## 📄 License
+
+MIT – Feel free to use, extend, or contribute improvements.
+
+---
+
+## 🙌 Credits
+
+Built to simplify identity workflows in modern ICP dApps without relying on wallet-specific features.

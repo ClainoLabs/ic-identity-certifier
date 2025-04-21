@@ -1,0 +1,16 @@
+type Response = 
+ variant {
+   Expired;
+   NotConfirmed;
+   Ok;
+   Unauthorized;
+ };
+type NanosecondsTimeStamp = nat;
+type IcIdentityVerifier = 
+ service {
+   confirmIdentity: () -> (Response);
+   documentation: () -> (text) query;
+   initiateAuth: (principal, opt NanosecondsTimeStamp) -> (Response);
+   verifyIdentity: (principal) -> (Response);
+ };
+service : (principal) -> IcIdentityVerifier
